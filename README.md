@@ -63,6 +63,7 @@ ExamTrend Analyzer는 이러한 분석 과정을 자동화하여 사용자가 �
 
 | 구분 | 기술 |
 |---|---|
+<<<<<<< HEAD
 | Language | Python 3.10 이상 |
 | GUI | PySide6 >= 6.6.0 |
 | Data Analysis | pandas >= 2.0.0 |
@@ -71,6 +72,21 @@ ExamTrend Analyzer는 이러한 분석 과정을 자동화하여 사용자가 �
 | PDF 처리 | PyMuPDF (fitz) |
 | Spreadsheet | openpyxl >= 3.1.0 |
 | Testing | pytest >= 8.0.0 |
+=======
+| 프로젝트명 | ExamTrend Analyzer |
+| 플랫폼 | Python 기반 데스크탑 애플리케이션 |
+| GUI 프레임워크 | PySide6 |
+| 개발 언어 | Python 3.11 이상 |
+| 핵심 기술 | 텍스트 마이닝, 자연어 처리, 데이터 시각화 |
+| 제약 조건 | LLM API 사용 금지 · 완전 오프라인 구동 |
+
+### 핵심 가치
+
+- **객관적 분석** — 감이 아닌 데이터로 출제 경향 파악
+- **반복 패턴 탐지** — 코사인 유사도 기반 유사 문항 자동 탐지
+- **다양한 입력** — PDF, CSV, Excel, TXT 다중 파일 병합 분석
+- **완전 독립 구동** — LLM API 없이 순수 통계·NLP만으로 동작
+>>>>>>> 6c516b727c31bf690a62e07ca6c4482197ecebb2
 
 ---
 
