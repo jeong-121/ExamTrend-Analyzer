@@ -10,7 +10,7 @@
 
 - 프로젝트명은 ExamTrend Analyzer로 결정
 - Python 기반 Desktop Application으로 개발
-- PyQt6, pandas, matplotlib, SQLite, kiwipiepy 사용
+- PySide6, pandas, matplotlib, SQLite, kiwipiepy 사용
 - 기능별 패키지를 분리하여 유지보수성을 확보
 - GitHub에 바로 업로드 가능한 초기 구조 작성
 

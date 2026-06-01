@@ -1,1 +1,1 @@
-"""UI package for PyQt6 windows and widgets."""
+"""PySide6 UI package for ExamTrend Analyzer."""

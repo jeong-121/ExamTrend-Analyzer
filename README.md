@@ -59,10 +59,19 @@ ExamTrend Analyzer는 이러한 분석 과정을 자동화하여 사용자가 �
 
 ### 2.5 Desktop UI
 
-- PyQt6 기반 데스크톱 애플리케이션
+- PySide6 기반 데스크톱 애플리케이션
 - 데이터 불러오기 화면
 - 분석 결과 대시보드
 - 그래프 및 보고서 출력 화면
+
+### 2.6 구조 개편 기준
+
+- `ui`: PySide6 화면과 위젯만 담당
+- `services`: UI와 분석/DB/보고서 로직 사이의 응용 서비스 계층
+- `analysis`: 순수 분석 알고리즘
+- `preprocessing`: 텍스트 정제와 토큰화
+- `visualization`: 그래프 생성
+- `database`: SQLite 연결과 데이터 모델
 
 ---
 
@@ -71,7 +80,7 @@ ExamTrend Analyzer는 이러한 분석 과정을 자동화하여 사용자가 �
 | 구분 | 기술 |
 |---|---|
 | Language | Python |
-| GUI | PyQt6 |
+| GUI | PySide6 |
 | Data Analysis | pandas |
 | Visualization | matplotlib |
 | Database | SQLite |
@@ -117,8 +126,7 @@ pip install -r requirements.txt
 
 ## 5. 실행 방법
 
-현재 단계에서는 프로젝트 초기 구조와 모듈 골격을 제공합니다.  
-추후 `src/examtrend_analyzer/main.py`를 진입점으로 사용합니다.
+현재 구조는 PySide6 기반 데스크톱 앱 진입점과 기본 화면을 제공합니다.
 
 ```bash
 python -m examtrend_analyzer.main
@@ -169,7 +177,20 @@ ExamTrend-Analyzer/
 │       ├── main.py
 │       ├── ui/
 │       │   ├── __init__.py
-│       │   └── main_window.py
+│       │   ├── main_window.py
+│       │   ├── pages/
+│       │   │   ├── __init__.py
+│       │   │   ├── dashboard_page.py
+│       │   │   ├── analysis_page.py
+│       │   │   └── report_page.py
+│       │   └── widgets/
+│       │       ├── __init__.py
+│       │       └── summary_card.py
+│       ├── services/
+│       │   ├── __init__.py
+│       │   ├── analysis_service.py
+│       │   ├── database_service.py
+│       │   └── report_service.py
 │       ├── analysis/
 │       │   ├── __init__.py
 │       │   ├── keyword_analyzer.py
@@ -228,7 +249,7 @@ ExamTrend-Analyzer/
 
 ## 10. 향후 개발 계획
 
-- [ ] PyQt6 기반 메인 화면 구현
+- [ ] PySide6 기반 메인 화면 구현
 - [ ] CSV 데이터 import 기능 구현
 - [ ] SQLite 스키마 확정
 - [ ] 키워드 빈도 분석 구현

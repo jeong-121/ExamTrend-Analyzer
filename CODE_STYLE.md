@@ -18,7 +18,7 @@ Python 3.10 이상을 권장합니다.
 
 ## 3. 모듈 분리 원칙
 
-- `ui`: PyQt6 화면 및 사용자 이벤트 처리
+- `ui`: PySide6 화면 및 사용자 이벤트 처리
 - `analysis`: 분석 알고리즘
 - `preprocessing`: 텍스트 정제 및 토큰화
 - `visualization`: 그래프 및 시각화 생성
