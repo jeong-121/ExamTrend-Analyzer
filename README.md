@@ -116,6 +116,9 @@ macOS / Linux:
 ```bash
 source .venv/bin/activate
 ```
+```bash
+python -m pip install --upgrade pip
+```
 
 ### 4.3 의존성 설치
 
