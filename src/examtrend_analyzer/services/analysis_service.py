@@ -1,4 +1,4 @@
-"Application service for file loading, automatic mapping, and simplified analysis."""
+"""Application service for file loading, automatic mapping, and generic analysis."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from typing import Any
 
 import pandas as pd
 
-from examtrend_analyzer.analysis.chapter_classifier import ChapterClassifier
 from examtrend_analyzer.analysis.keyword_analyzer import KeywordAnalyzer
 from examtrend_analyzer.analysis.similarity_analyzer import SimilarityAnalyzer
+from examtrend_analyzer.analysis.topic_analyzer import TopicAnalyzer
 from examtrend_analyzer.core.file_loader import FileLoader
 from examtrend_analyzer.core.models import AnalysisResult, DatasetSummary, ValidationIssue
 from examtrend_analyzer.core.schema import FieldMapping, REQUIRED_COLUMNS, suggest_field_mapping
@@ -31,7 +31,7 @@ QUESTION_COLUMN_CANDIDATES = [
 
 @dataclass
 class AnalysisService:
-    """Coordinate file loading, automatic field mapping, and simplified analysis."""
+    """Coordinate file loading, automatic field mapping, and generic analysis."""
 
     file_loader: FileLoader = field(default_factory=FileLoader)
     current_dataframe: pd.DataFrame | None = None
@@ -157,10 +157,18 @@ class AnalysisService:
         skipped_analyses: list[str] = []
 
         keyword_analyzer = KeywordAnalyzer()
+        topic_analyzer = TopicAnalyzer()
         similarity_analyzer = SimilarityAnalyzer()
 
         keyword_counts = keyword_analyzer.analyze(texts, top_n=50)
         keyword_rows = keyword_analyzer.analyze_with_document_frequency(texts, top_n=50)
+
+        topic_result = topic_analyzer.analyze(texts)
+        topic_assignments = topic_result["assignments"]
+        topic_counts = topic_result["counts"]
+        topic_distribution = topic_result["distribution"]
+        topic_keywords = topic_result["topic_keywords"]
+        df["topic_auto"] = topic_assignments
 
         similar_pairs = similarity_analyzer.find_similar_pairs(
             texts,
@@ -174,35 +182,10 @@ class AnalysisService:
         )
 
         analysis_status["키워드 분석"] = "실행됨"
+        analysis_status["자동 주제 분석"] = "실행됨: 데이터 기반 자동 그룹화"
         analysis_status["유사 문항 분석"] = "실행됨"
 
-        chapter_column, chapter_source = self._ensure_chapter_column(df, question_column)
-
-        if chapter_column:
-            chapter_counts = self._value_counts(df, chapter_column)
-            chapter_distribution = self._chapter_distribution(df, chapter_column)
-            if chapter_source == "keyword_auto":
-                analysis_status["단원별 출제 비중"] = "실행됨: 키워드 기반 자동 분류"
-            else:
-                analysis_status["단원별 출제 비중"] = "실행됨"
-        else:
-            chapter_counts = {}
-            chapter_distribution = []
-            chapter_source = "none"
-            analysis_status["단원별 출제 비중"] = "건너뜀: chapter 컬럼 없음"
-            skipped_analyses.append("단원별 출제 비중 분석")
-
         issues = self._validate_for_ui(df, question_column)
-
-        if chapter_source == "keyword_auto":
-            issues.append(
-                ValidationIssue(
-                    level="info",
-                    code="AUTO_CHAPTER",
-                    message="chapter 컬럼이 없어 키워드 기반 자동 단원 분류를 적용했습니다.",
-                    column="chapter_auto",
-                )
-            )
 
         summary = DatasetSummary(
             file_path=Path(self.current_file_path)
@@ -211,7 +194,8 @@ class AnalysisService:
             row_count=int(len(df)),
             column_count=int(len(df.columns)),
             years=[],
-            chapters=self._collect_unique_values(df, chapter_column) if chapter_column else [],
+            chapters=[],
+            topics=self._collect_unique_values(df, "topic_auto"),
             difficulties=[],
         )
 
@@ -219,7 +203,7 @@ class AnalysisService:
             summary=summary,
             keyword_counts=keyword_counts,
             yearly_counts={},
-            chapter_counts=chapter_counts,
+            chapter_counts=topic_counts,
             difficulty_counts={},
             average_difficulty_by_year={},
             issues=issues,
@@ -230,8 +214,19 @@ class AnalysisService:
             similar_pairs=similar_pairs,
             analysis_status=analysis_status,
             skipped_analyses=skipped_analyses,
-            chapter_source=chapter_source,
-            chapter_distribution=chapter_distribution,
+            topic_source="keyword_cluster",
+            topic_counts=topic_counts,
+            topic_distribution=topic_distribution,
+            topic_keywords=topic_keywords,
+            chapter_source="topic_auto",
+            chapter_distribution=[
+                {
+                    "chapter": row["topic"],
+                    "count": row["count"],
+                    "ratio": row["ratio"],
+                }
+                for row in topic_distribution
+            ],
         )
 
     def detect_question_column(self, dataframe: pd.DataFrame | None = None) -> str:
@@ -253,28 +248,6 @@ class AnalysisService:
 
         raise ValueError("분석 가능한 컬럼이 없습니다.")
 
-    def _ensure_chapter_column(
-        self,
-        dataframe: pd.DataFrame,
-        question_column: str,
-    ) -> tuple[str | None, str]:
-        if "chapter" in dataframe.columns and dataframe["chapter"].notna().any():
-            return "chapter", "provided"
-
-        if "chapter_auto" in dataframe.columns and dataframe["chapter_auto"].notna().any():
-            return "chapter_auto", "provided_auto"
-
-        classifier = ChapterClassifier()
-        dataframe["chapter_auto"] = [
-            classifier.classify(text)
-            for text in dataframe[question_column].fillna("").astype(str)
-        ]
-
-        if dataframe["chapter_auto"].notna().any():
-            return "chapter_auto", "keyword_auto"
-
-        return None, "none"
-
     def _attach_filename_metadata(self, dataframe: pd.DataFrame, path: str | Path) -> pd.DataFrame:
         df = dataframe.copy()
         metadata = extract_metadata_from_filename(path)
@@ -290,6 +263,9 @@ class AnalysisService:
         if "exam_name" not in df.columns:
             df["exam_name"] = metadata.exam_name
 
+        if "year" not in df.columns and metadata.year is not None:
+            df["year"] = metadata.year
+
         return df
 
     def _enrich_similar_pairs(
@@ -298,7 +274,6 @@ class AnalysisService:
         dataframe: pd.DataFrame,
         question_column: str,
     ) -> list[dict[str, object]]:
-        """Attach readable question/source fields and remove meaningless pairs."""
         enriched: list[dict[str, object]] = []
 
         for pair in pairs:
@@ -329,26 +304,22 @@ class AnalysisService:
         row1: dict[str, Any],
         row2: dict[str, Any],
     ) -> bool:
-        """Filter same exam item comparisons from similar-question results."""
         if not row1 or not row2:
             return False
 
         source1 = self._normalize_meta_value(row1.get("source_file"))
         source2 = self._normalize_meta_value(row2.get("source_file"))
-        qno1 = self._normalize_meta_value(row1.get("question_no"))
-        qno2 = self._normalize_meta_value(row2.get("question_no"))
 
-        if source1 and source2 and qno1 and qno2:
-            if source1 == source2 and qno1 == qno2:
-                return True
+        if source1 and source2 and source1 == source2:
+            return True
 
         year1 = self._normalize_meta_value(row1.get("year"))
         year2 = self._normalize_meta_value(row2.get("year"))
         round1 = self._normalize_meta_value(row1.get("exam_round"))
         round2 = self._normalize_meta_value(row2.get("exam_round"))
 
-        if year1 and year2 and round1 and round2 and qno1 and qno2:
-            if year1 == year2 and round1 == round2 and qno1 == qno2:
+        if year1 and year2 and round1 and round2:
+            if year1 == year2 and round1 == round2:
                 return True
 
         return False
@@ -453,30 +424,3 @@ class AnalysisService:
             return sorted(set(result))
 
         return sorted({str(value) for value in values if str(value).strip()})
-
-    def _value_counts(self, dataframe: pd.DataFrame, column: str) -> dict:
-        if column not in dataframe.columns:
-            return {}
-
-        counts = dataframe[column].fillna("-").astype(str).value_counts()
-        return {key: int(value) for key, value in counts.items()}
-
-    def _chapter_distribution(
-        self,
-        dataframe: pd.DataFrame,
-        chapter_column: str,
-    ) -> list[dict[str, object]]:
-        if chapter_column not in dataframe.columns or dataframe.empty:
-            return []
-
-        counts = dataframe[chapter_column].fillna("미분류").astype(str).value_counts()
-        total = int(counts.sum())
-
-        return [
-            {
-                "chapter": str(chapter),
-                "count": int(count),
-                "ratio": round((int(count) / total) * 100, 2) if total else 0.0,
-            }
-            for chapter, count in counts.items()
-        ]

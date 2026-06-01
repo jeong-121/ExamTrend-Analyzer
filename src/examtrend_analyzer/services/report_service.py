@@ -29,7 +29,7 @@ class ReportService:
 
         row_count = getattr(summary, "row_count", 0)
         file_path = getattr(summary, "file_path", None)
-        chapters = getattr(summary, "chapters", [])
+        topics = getattr(summary, "topics", [])
 
         lines: list[str] = []
 
@@ -40,11 +40,12 @@ class ReportService:
         lines.append("")
         lines.append(f"- 문항 수: {row_count}")
         lines.append(f"- 원본 파일: {file_path if file_path else '-'}")
-        lines.append(f"- 단원 수: {len(chapters)}")
+        lines.append(f"- 자동 주제 수: {len(topics)}")
         lines.append("")
 
         analysis_status = getattr(result, "analysis_status", {})
-        chapter_distribution = getattr(result, "chapter_distribution", [])
+        topic_distribution = getattr(result, "topic_distribution", [])
+        topic_keywords = getattr(result, "topic_keywords", [])
 
         lines.append("## 2. 분석 실행 상태")
         if analysis_status:
@@ -56,30 +57,43 @@ class ReportService:
 
         self._append_mapping(lines, "3. 키워드 빈도", getattr(result, "keyword_counts", {}))
 
-        lines.append("## 4. 단원별 출제 비중")
-        if chapter_distribution:
-            for row in chapter_distribution[:30]:
+        lines.append("## 4. 자동 주제별 비중")
+        if topic_distribution:
+            for row in topic_distribution[:30]:
                 lines.append(
-                    f"- {row['chapter']}: {row['count']}문항 ({row['ratio']}%)"
+                    f"- {row['topic']}: {row['count']}문항 ({row['ratio']}%)"
                 )
         else:
             lines.append("- 결과 없음")
         lines.append("")
 
-        lines.append("## 5. 유사 문항 후보")
+        lines.append("## 5. 자동 주제별 대표 키워드")
+        if topic_keywords:
+            for row in topic_keywords[:30]:
+                keywords = row.get("keywords", [])
+                if isinstance(keywords, list):
+                    keyword_text = ", ".join(map(str, keywords))
+                else:
+                    keyword_text = str(keywords)
+                lines.append(f"- {row.get('topic', '-')}: {keyword_text}")
+        else:
+            lines.append("- 결과 없음")
+        lines.append("")
+
+        lines.append("## 6. 유사 문항 후보")
         similar_pairs = getattr(result, "similar_pairs", [])
         if similar_pairs:
             for row in similar_pairs[:50]:
                 lines.append(
-                    f"- similarity={row.get('similarity')}\\n"
-                    f"  - 문항1: {row.get('question_1_source', '-')} / {row.get('question_1_text', '')}\\n"
+                    f"- similarity={row.get('similarity')}\n"
+                    f"  - 문항1: {row.get('question_1_source', '-')} / {row.get('question_1_text', '')}\n"
                     f"  - 문항2: {row.get('question_2_source', '-')} / {row.get('question_2_text', '')}"
                 )
         else:
             lines.append("- 기준 이상 유사 문항 후보가 없습니다.")
         lines.append("")
 
-        lines.append("## 6. 검증 이슈")
+        lines.append("## 7. 검증 이슈")
         issues = getattr(result, "issues", [])
         if issues:
             for issue in issues[:100]:

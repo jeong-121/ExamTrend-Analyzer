@@ -96,7 +96,7 @@ class ChartCanvas(QWidget):
         self,
         rows: list[dict[str, object]],
         title: str,
-        label_key: str = "chapter",
+        label_key: str = "topic",
         value_key: str = "count",
         top_n: int = 8,
     ) -> None:
@@ -104,7 +104,7 @@ class ChartCanvas(QWidget):
         self.figure.clear()
 
         if not rows:
-            self.clear("chapter 컬럼 또는 자동 분류 결과가 없어 표시할 수 없습니다.")
+            self.clear("자동 주제 분석 결과가 없어 표시할 수 없습니다.")
             return
 
         selected = rows[:top_n]
@@ -125,17 +125,17 @@ class ChartCanvas(QWidget):
 
 
 class AnalysisChartsWidget(QWidget):
-    """Composite visualization panel for simplified AnalysisResult."""
+    """Composite visualization panel for generic AnalysisResult."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
 
         self.keyword_chart = ChartCanvas("상위 키워드 빈도")
-        self.chapter_chart = ChartCanvas("단원별 출제 비중")
+        self.topic_chart = ChartCanvas("자동 주제 비중")
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.keyword_chart)
-        layout.addWidget(self.chapter_chart)
+        layout.addWidget(self.topic_chart)
 
     def update_result(self, result: AnalysisResult) -> None:
         self.keyword_chart.bar_chart(
@@ -147,7 +147,8 @@ class AnalysisChartsWidget(QWidget):
             horizontal=True,
         )
 
-        self.chapter_chart.pie_chart(
-            getattr(result, "chapter_distribution", []),
-            title="단원별 출제 비중",
+        self.topic_chart.pie_chart(
+            getattr(result, "topic_distribution", []),
+            title="자동 주제 비중",
+            label_key="topic",
         )

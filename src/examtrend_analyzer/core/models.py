@@ -23,6 +23,7 @@ class DatasetSummary:
     column_count: int = 0
     years: list[int] = field(default_factory=list)
     chapters: list[str] = field(default_factory=list)
+    topics: list[str] = field(default_factory=list)
     difficulties: list[str] = field(default_factory=list)
 
 
@@ -42,5 +43,13 @@ class AnalysisResult:
     similar_pairs: list[dict[str, object]] = field(default_factory=list)
     analysis_status: dict[str, str] = field(default_factory=dict)
     skipped_analyses: list[str] = field(default_factory=list)
+
+    # Generic topic-analysis fields.
+    topic_source: str = "keyword_cluster"
+    topic_counts: dict[str, int] = field(default_factory=dict)
+    topic_distribution: list[dict[str, object]] = field(default_factory=list)
+    topic_keywords: list[dict[str, object]] = field(default_factory=list)
+
+    # Legacy fields kept to avoid breaking existing UI/report code paths.
     chapter_source: str = "none"
     chapter_distribution: list[dict[str, object]] = field(default_factory=list)

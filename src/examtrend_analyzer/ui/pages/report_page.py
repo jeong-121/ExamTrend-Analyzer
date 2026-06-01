@@ -37,21 +37,36 @@ class ReportPage(QWidget):
         )[:15]:
             lines.append(f"- {keyword}: {count}")
 
-        lines.extend(["", "## 단원별 출제 비중"])
+        lines.extend(["", "## 자동 주제별 비중"])
 
-        if result.chapter_distribution:
-            for row in result.chapter_distribution[:10]:
-                lines.append(f"- {row['chapter']}: {row['count']}문항 ({row['ratio']}%)")
+        topic_distribution = getattr(result, "topic_distribution", [])
+        if topic_distribution:
+            for row in topic_distribution[:10]:
+                lines.append(f"- {row['topic']}: {row['count']}문항 ({row['ratio']}%)")
         else:
-            lines.append("- chapter 컬럼 또는 자동 분류 결과가 없어 분석하지 못했습니다.")
+            lines.append("- 자동 주제 분석 결과가 없습니다.")
+
+        lines.extend(["", "## 자동 주제별 대표 키워드"])
+
+        topic_keywords = getattr(result, "topic_keywords", [])
+        if topic_keywords:
+            for row in topic_keywords[:10]:
+                keywords = row.get("keywords", [])
+                if isinstance(keywords, list):
+                    keyword_text = ", ".join(map(str, keywords))
+                else:
+                    keyword_text = str(keywords)
+                lines.append(f"- {row.get('topic', '-')}: {keyword_text}")
+        else:
+            lines.append("- 자동 주제 키워드가 없습니다.")
 
         lines.extend(["", "## 유사 문항 후보"])
 
         if result.similar_pairs:
             for row in result.similar_pairs[:10]:
                 lines.append(
-                    f"- similarity={row.get('similarity')}\\n"
-                    f"  - 문항1: {row.get('question_1_source', '-')} / {row.get('question_1_text', '')}\\n"
+                    f"- similarity={row.get('similarity')}\n"
+                    f"  - 문항1: {row.get('question_1_source', '-')} / {row.get('question_1_text', '')}\n"
                     f"  - 문항2: {row.get('question_2_source', '-')} / {row.get('question_2_text', '')}"
                 )
         else:

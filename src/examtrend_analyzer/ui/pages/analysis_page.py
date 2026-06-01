@@ -28,8 +28,11 @@ class AnalysisPage(QWidget):
         self.keyword_table = QTableWidget(0, 2)
         self.keyword_table.setHorizontalHeaderLabels(["키워드", "빈도"])
 
-        self.chapter_table = QTableWidget(0, 3)
-        self.chapter_table.setHorizontalHeaderLabels(["단원", "문항 수", "비율(%)"])
+        self.topic_table = QTableWidget(0, 3)
+        self.topic_table.setHorizontalHeaderLabels(["자동 주제", "문항 수", "비율(%)"])
+
+        self.topic_keyword_table = QTableWidget(0, 2)
+        self.topic_keyword_table.setHorizontalHeaderLabels(["자동 주제", "대표 키워드"])
 
         self.similar_table = QTableWidget(0, 5)
         self.similar_table.setHorizontalHeaderLabels([
@@ -51,7 +54,8 @@ class AnalysisPage(QWidget):
 
         self.tabs.addTab(self._wrap(self.summary_text), "요약")
         self.tabs.addTab(self._wrap(self.keyword_table), "키워드")
-        self.tabs.addTab(self._wrap(self.chapter_table), "단원별")
+        self.tabs.addTab(self._wrap(self.topic_table), "자동 주제")
+        self.tabs.addTab(self._wrap(self.topic_keyword_table), "주제 키워드")
         self.tabs.addTab(self._wrap(self.similar_table), "유사 문항")
         self.tabs.addTab(self._wrap(self.issue_table), "검증/경고")
         self.tabs.addTab(self.charts_widget, "시각화")
@@ -121,7 +125,8 @@ class AnalysisPage(QWidget):
 
     def update_result(self, result: AnalysisResult) -> None:
         self._update_keyword_table(result)
-        self._update_chapter_table(result)
+        self._update_topic_table(result)
+        self._update_topic_keyword_table(result)
         self._update_similar_table(result)
         self._update_issue_table(result)
         self._update_summary(result)
@@ -137,28 +142,32 @@ class AnalysisPage(QWidget):
 
         self.keyword_table.resizeColumnsToContents()
 
-    def _update_chapter_table(self, result: AnalysisResult) -> None:
-        rows = getattr(result, "chapter_distribution", [])
-
-        if not rows and result.chapter_counts:
-            total = sum(int(value) for value in result.chapter_counts.values())
-            rows = [
-                {
-                    "chapter": chapter,
-                    "count": count,
-                    "ratio": round((int(count) / total) * 100, 2) if total else 0,
-                }
-                for chapter, count in result.chapter_counts.items()
-            ]
-
-        self.chapter_table.setRowCount(len(rows))
+    def _update_topic_table(self, result: AnalysisResult) -> None:
+        rows = getattr(result, "topic_distribution", [])
+        self.topic_table.setRowCount(len(rows))
 
         for row, item in enumerate(rows):
-            self.chapter_table.setItem(row, 0, QTableWidgetItem(str(item.get("chapter", ""))))
-            self.chapter_table.setItem(row, 1, QTableWidgetItem(str(item.get("count", 0))))
-            self.chapter_table.setItem(row, 2, QTableWidgetItem(str(item.get("ratio", 0))))
+            self.topic_table.setItem(row, 0, QTableWidgetItem(str(item.get("topic", ""))))
+            self.topic_table.setItem(row, 1, QTableWidgetItem(str(item.get("count", 0))))
+            self.topic_table.setItem(row, 2, QTableWidgetItem(str(item.get("ratio", 0))))
 
-        self.chapter_table.resizeColumnsToContents()
+        self.topic_table.resizeColumnsToContents()
+
+    def _update_topic_keyword_table(self, result: AnalysisResult) -> None:
+        rows = getattr(result, "topic_keywords", [])
+        self.topic_keyword_table.setRowCount(len(rows))
+
+        for row, item in enumerate(rows):
+            keywords = item.get("keywords", [])
+            if isinstance(keywords, list):
+                keyword_text = ", ".join(map(str, keywords))
+            else:
+                keyword_text = str(keywords)
+
+            self.topic_keyword_table.setItem(row, 0, QTableWidgetItem(str(item.get("topic", ""))))
+            self.topic_keyword_table.setItem(row, 1, QTableWidgetItem(keyword_text))
+
+        self.topic_keyword_table.resizeColumnsToContents()
 
     def _update_similar_table(self, result: AnalysisResult) -> None:
         rows = result.similar_pairs[:100]
@@ -211,7 +220,7 @@ class AnalysisPage(QWidget):
 
         analysis_status = getattr(result, "analysis_status", {})
         skipped_analyses = getattr(result, "skipped_analyses", [])
-        chapter_distribution = getattr(result, "chapter_distribution", [])
+        topic_distribution = getattr(result, "topic_distribution", [])
 
         lines: list[str] = []
 
@@ -236,18 +245,18 @@ class AnalysisPage(QWidget):
         lines.append(f"info: {issue_counts.get('info', 0)}")
 
         lines.append("")
-        lines.append("[단원별 문항 수]")
-        if result.chapter_counts:
-            for key, value in result.chapter_counts.items():
+        lines.append("[자동 주제별 문항 수]")
+        if getattr(result, "topic_counts", {}):
+            for key, value in result.topic_counts.items():
                 lines.append(f"{key}: {value}")
         else:
-            lines.append("chapter 컬럼 또는 자동 분류 결과 없음")
+            lines.append("자동 주제 분석 결과 없음")
 
         lines.append("")
-        lines.append("[단원별 출제 비중]")
-        if chapter_distribution:
-            for row in chapter_distribution[:20]:
-                lines.append(f"{row['chapter']}: {row['count']}문항 ({row['ratio']}%)")
+        lines.append("[자동 주제별 비중]")
+        if topic_distribution:
+            for row in topic_distribution[:20]:
+                lines.append(f"{row['topic']}: {row['count']}문항 ({row['ratio']}%)")
         else:
             lines.append("결과 없음")
 

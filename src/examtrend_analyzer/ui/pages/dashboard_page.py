@@ -20,7 +20,7 @@ class DashboardPage(QWidget):
 
         self.row_card = SummaryCard("문항 수")
         self.year_card = SummaryCard("연도 범위")
-        self.chapter_card = SummaryCard("단원 수")
+        self.chapter_card = SummaryCard("자동 주제 수")
         self.issue_card = SummaryCard("검증 이슈")
 
         grid = QGridLayout()
@@ -52,5 +52,5 @@ class DashboardPage(QWidget):
             if result.summary.years
             else "-"
         )
-        self.chapter_card.set_value(len(result.summary.chapters))
+        self.chapter_card.set_value(len(getattr(result.summary, "topics", [])))
         self.issue_card.set_value(len(result.issues))
