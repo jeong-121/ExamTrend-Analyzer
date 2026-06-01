@@ -1,15 +1,11 @@
-"""Convenience launcher for local development.
-
-Run with: python run.py
-"""
-
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parent
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+PROJECT_ROOT = Path(__file__).resolve().parent
+SRC_PATH = PROJECT_ROOT / "src"
+
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
 
 from examtrend_analyzer.main import main
 

@@ -1,27 +1,21 @@
-"""Difficulty analysis module.
+"""Difficulty analysis module."""
 
-난이도 분포와 연도별 난이도 변화를 분석한다.
-"""
+from __future__ import annotations
 
 import pandas as pd
 
-
 class DifficultyAnalyzer:
-    """난이도 분석기."""
-
-    DIFFICULTY_SCORE = {
-        "하": 1,
-        "중": 2,
-        "상": 3,
-    }
+    DIFFICULTY_SCORE = {"하": 1, "중": 2, "상": 3, "easy": 1, "medium": 2, "hard": 3, "1": 1, "2": 2, "3": 3}
 
     def count_by_difficulty(self, data: pd.DataFrame) -> pd.Series:
-        """난이도별 문항 수를 계산한다."""
-        # TODO: 난이도 값 검증 및 사용자 정의 난이도 체계 지원
-        return data["difficulty"].value_counts()
+        if "difficulty" not in data.columns:
+            return pd.Series(dtype="int64")
+        return data["difficulty"].fillna("미지정").astype(str).value_counts()
 
     def average_difficulty_by_year(self, data: pd.DataFrame) -> pd.Series:
-        """연도별 평균 난이도 점수를 계산한다."""
+        if "year" not in data.columns or "difficulty" not in data.columns:
+            return pd.Series(dtype="float64")
         copied = data.copy()
-        copied["difficulty_score"] = copied["difficulty"].map(self.DIFFICULTY_SCORE)
-        return copied.groupby("year")["difficulty_score"].mean()
+        copied["difficulty_score"] = copied["difficulty"].astype(str).map(self.DIFFICULTY_SCORE)
+        copied["year"] = pd.to_numeric(copied["year"], errors="coerce")
+        return copied.dropna(subset=["year"]).groupby("year")["difficulty_score"].mean()

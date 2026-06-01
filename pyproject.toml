@@ -1,0 +1,18 @@
+[project]
+name = "examtrend-analyzer"
+version = "0.2.0"
+description = "PySide6 based exam trend analysis desktop application"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.6.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+    "openpyxl>=3.1.0",
+    "scikit-learn>=1.3.0",
+    "kiwipiepy>=0.18.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,26 +1,64 @@
-"""File loader utility module.
+"""File loader utility module."""
 
-CSV, Excel 등 외부 기출문제 데이터 파일을 pandas DataFrame으로 불러온다.
-"""
+from __future__ import annotations
 
 from pathlib import Path
+from typing import Mapping
 
 import pandas as pd
 
+from examtrend_analyzer.core.schema import apply_field_mapping, normalize_column_name
 
 class FileLoader:
-    """기출문제 데이터 파일 로더."""
+    """Load CSV and Excel datasets into pandas DataFrames."""
 
-    def load_csv(self, file_path: str | Path) -> pd.DataFrame:
-        """CSV 파일을 DataFrame으로 로딩한다."""
-        # TODO: 인코딩 자동 감지 및 컬럼 검증 기능 추가
-        return pd.read_csv(file_path)
+    def load(self, file_path: str | Path, mapping: Mapping[str, str] | None = None, normalize: bool = True) -> pd.DataFrame:
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {path}")
+        if path.stat().st_size == 0:
+            raise ValueError("빈 파일은 불러올 수 없습니다.")
+        if path.suffix.lower() == ".csv":
+            data = self.load_csv(path, normalize=False)
+        elif path.suffix.lower() in {".xlsx", ".xls"}:
+            data = self.load_excel(path, normalize=False)
+        else:
+            raise ValueError(f"지원하지 않는 파일 형식입니다: {path.suffix}")
+        if mapping:
+            return self.apply_mapping(data, mapping)
+        if normalize:
+            return self._normalize_columns(data)
+        return data
 
-    def load_excel(self, file_path: str | Path) -> pd.DataFrame:
-        """Excel 파일을 DataFrame으로 로딩한다."""
-        # TODO: 시트 선택 옵션 추가
-        return pd.read_excel(file_path)
+    def load_raw(self, file_path: str | Path) -> pd.DataFrame:
+        return self.load(file_path, normalize=False)
+
+    def load_csv(self, file_path: str | Path, normalize: bool = True) -> pd.DataFrame:
+        last_error: Exception | None = None
+        for encoding in ("utf-8-sig", "utf-8", "cp949"):
+            try:
+                data = pd.read_csv(file_path, encoding=encoding)
+                return self._normalize_columns(data) if normalize else data
+            except UnicodeDecodeError as exc:
+                last_error = exc
+        if last_error:
+            raise last_error
+        data = pd.read_csv(file_path)
+        return self._normalize_columns(data) if normalize else data
+
+    def load_excel(self, file_path: str | Path, sheet_name: int | str = 0, normalize: bool = True) -> pd.DataFrame:
+        data = pd.read_excel(file_path, sheet_name=sheet_name)
+        return self._normalize_columns(data) if normalize else data
 
     def validate_columns(self, data: pd.DataFrame, required_columns: list[str]) -> bool:
-        """필수 컬럼이 존재하는지 검사한다."""
         return all(column in data.columns for column in required_columns)
+
+    def apply_mapping(self, data: pd.DataFrame, mapping: Mapping[str, str]) -> pd.DataFrame:
+        copied = data.copy()
+        copied.columns = apply_field_mapping([str(c) for c in copied.columns], mapping)
+        return copied
+
+    def _normalize_columns(self, data: pd.DataFrame) -> pd.DataFrame:
+        copied = data.copy()
+        copied.columns = [normalize_column_name(column) for column in copied.columns]
+        return copied

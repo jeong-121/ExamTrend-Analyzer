@@ -1,154 +1,195 @@
-"""PySide6 main window for ExamTrend Analyzer."""
+"""PySide6 main window."""
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-import pandas as pd
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QThreadPool
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QMainWindow,
     QMessageBox,
-    QStackedWidget,
-    QToolBar,
+    QStatusBar,
+    QTabWidget,
 )
 
-from examtrend_analyzer.services import AnalysisResult, AnalysisService, ReportService
-from examtrend_analyzer.ui.pages import AnalysisPage, DashboardPage, ReportPage
-from examtrend_analyzer.utils.file_loader import FileLoader
+from examtrend_analyzer.config.settings import APP_NAME, DEFAULT_REPORT_DIR
+from examtrend_analyzer.core.models import AnalysisResult
+from examtrend_analyzer.services.analysis_service import AnalysisService
+from examtrend_analyzer.services.report_service import ReportService
+from examtrend_analyzer.ui.dialogs.field_mapping_dialog import FieldMappingDialog
+from examtrend_analyzer.ui.pages.analysis_page import AnalysisPage
+from examtrend_analyzer.ui.pages.dashboard_page import DashboardPage
+from examtrend_analyzer.ui.pages.report_page import ReportPage
+from examtrend_analyzer.ui.workers import FunctionWorker
 
 
 class MainWindow(QMainWindow):
-    """Main PySide6 window for the analysis workflow."""
+    """Main application window."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("ExamTrend Analyzer")
-        self.resize(1100, 760)
 
-        self.file_loader = FileLoader()
         self.analysis_service = AnalysisService()
         self.report_service = ReportService()
-        self.current_data: pd.DataFrame | None = None
-        self.current_result: AnalysisResult | None = None
+        self.thread_pool = QThreadPool.globalInstance()
 
-        self.stack = QStackedWidget()
+        self.setWindowTitle(APP_NAME)
+        self.resize(1200, 800)
+
+        self.tabs = QTabWidget()
         self.dashboard_page = DashboardPage()
         self.analysis_page = AnalysisPage()
         self.report_page = ReportPage()
-        self.stack.addWidget(self.dashboard_page)
-        self.stack.addWidget(self.analysis_page)
-        self.stack.addWidget(self.report_page)
-        self.setCentralWidget(self.stack)
 
-        self._setup_toolbar()
-        self.statusBar().showMessage("CSV 또는 Excel 파일을 불러오세요.")
+        self.tabs.addTab(self.dashboard_page, "대시보드")
+        self.tabs.addTab(self.analysis_page, "분석")
+        self.tabs.addTab(self.report_page, "보고서")
 
-    def _setup_toolbar(self) -> None:
-        toolbar = QToolBar("Main Toolbar")
-        toolbar.setMovable(False)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
+        self.setCentralWidget(self.tabs)
+        self.setStatusBar(QStatusBar())
 
-        load_action = toolbar.addAction("파일 불러오기")
-        load_action.triggered.connect(self.load_file)
-
-        analyze_action = toolbar.addAction("분석 실행")
-        analyze_action.triggered.connect(self.run_analysis)
-
-        toolbar.addSeparator()
-
-        dashboard_action = toolbar.addAction("대시보드")
-        dashboard_action.triggered.connect(lambda: self.stack.setCurrentWidget(self.dashboard_page))
-
-        analysis_action = toolbar.addAction("분석 결과")
-        analysis_action.triggered.connect(lambda: self.stack.setCurrentWidget(self.analysis_page))
-
-        report_action = toolbar.addAction("보고서")
-        report_action.triggered.connect(lambda: self.stack.setCurrentWidget(self.report_page))
-
-        toolbar.addSeparator()
-
-        save_report_action = toolbar.addAction("보고서 저장")
-        save_report_action.triggered.connect(self.save_report)
+        self.dashboard_page.load_button.clicked.connect(self.load_file)
+        self.dashboard_page.analyze_button.clicked.connect(self.run_analysis)
+        self.report_page.save_button.clicked.connect(self.save_report)
 
     def load_file(self) -> None:
-        """Load CSV or Excel data into the dashboard."""
-        file_path, _ = QFileDialog.getOpenFileName(
+        file_paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "기출문제 데이터 불러오기",
+            "기출문제 파일 선택",
             "",
-            "Data Files (*.csv *.xlsx *.xls);;CSV Files (*.csv);;Excel Files (*.xlsx *.xls)",
+            (
+                "지원 파일 (*.csv *.xlsx *.xls *.pdf *.txt);;"
+                "PDF 파일 (*.pdf);;"
+                "Excel 파일 (*.xlsx *.xls);;"
+                "CSV 파일 (*.csv);;"
+                "텍스트 파일 (*.txt);;"
+                "전체 파일 (*.*)"
+            ),
         )
+
+        if not file_paths:
+            return
+
+        try:
+            if len(file_paths) == 1:
+                raw_data, suggested_mapping = self.analysis_service.preview_file(file_paths[0])
+            else:
+                raw_data, suggested_mapping = self.analysis_service.preview_files(file_paths)
+
+            if self.analysis_service.can_auto_apply_mapping(suggested_mapping):
+                data = self.analysis_service.auto_apply_mapping(suggested_mapping)
+                mapping_status = "자동 매핑 적용 완료"
+            else:
+                dialog = FieldMappingDialog(
+                    [str(column) for column in raw_data.columns],
+                    suggested_mapping,
+                    self,
+                )
+
+                if dialog.exec() != FieldMappingDialog.DialogCode.Accepted:
+                    self.statusBar().showMessage("파일 로딩이 취소되었습니다.")
+                    return
+
+                missing = dialog.missing_required()
+                if missing:
+                    QMessageBox.warning(
+                        self,
+                        "필드 매핑 오류",
+                        "필수 필드가 매핑되지 않았습니다: " + ", ".join(missing),
+                    )
+                    return
+
+                data = self.analysis_service.apply_mapping(dialog.get_mapping())
+                mapping_status = "수동 매핑 적용 완료"
+
+            file_label = (
+                file_paths[0]
+                if len(file_paths) == 1
+                else f"{len(file_paths)}개 파일 병합"
+            )
+
+            self.statusBar().showMessage(f"파일 로딩 완료: {len(data)}개 문항")
+            self.dashboard_page.file_label.setText(f"현재 파일: {file_label}")
+            self.dashboard_page.mapping_label.setText(f"필드 매핑: {mapping_status}")
+            self.dashboard_page.row_card.set_value(len(data))
+
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "파일 로딩 실패", str(exc))
+
+    def run_analysis(self) -> None:
+        if not self.analysis_service.has_data():
+            QMessageBox.warning(
+                self,
+                "분석 불가",
+                "분석할 데이터가 없습니다. 먼저 기출문제 파일을 불러오세요.",
+            )
+            return
+
+        self.dashboard_page.set_loading_state(True)
+        self.statusBar().showMessage("분석 실행 중...")
+
+        worker = FunctionWorker(self.analysis_service.analyze_current)
+        worker.signals.finished.connect(self._analysis_finished)
+        worker.signals.failed.connect(self._task_failed)
+        self.thread_pool.start(worker)
+
+    def _analysis_finished(self, result: AnalysisResult) -> None:
+        self.dashboard_page.set_loading_state(False)
+        self.dashboard_page.update_result(result)
+        self.analysis_page.update_result(result)
+        self.report_page.update_result(result)
+        self.tabs.setCurrentWidget(self.analysis_page)
+        self.statusBar().showMessage("분석 완료")
+
+    def _task_failed(self, message: str) -> None:
+        self.dashboard_page.set_loading_state(False)
+        self.statusBar().showMessage("작업 실패")
+        QMessageBox.critical(self, "작업 실패", message)
+
+    def save_report(self) -> None:
+        result = self.analysis_service.last_result
+
+        if result is None:
+            QMessageBox.warning(
+                self,
+                "보고서 저장 불가",
+                "먼저 분석을 실행하세요.",
+            )
+            return
+
+        DEFAULT_REPORT_DIR.mkdir(exist_ok=True)
+        default_path = DEFAULT_REPORT_DIR / "analysis_report.md"
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "보고서 저장",
+            str(default_path),
+            "Markdown Files (*.md);;Text Files (*.txt);;All Files (*.*)",
+        )
+
         if not file_path:
             return
 
-        path = Path(file_path)
         try:
-            if path.suffix.lower() == ".csv":
-                data = self.file_loader.load_csv(path)
-            elif path.suffix.lower() in {".xlsx", ".xls"}:
-                data = self.file_loader.load_excel(path)
+            if hasattr(self.report_service, "save_markdown"):
+                saved_path = self.report_service.save_markdown(result, Path(file_path))
             else:
-                raise ValueError("지원하지 않는 파일 형식입니다.")
-        except Exception as exc:  # noqa: BLE001 - UI boundary should show any load error.
-            QMessageBox.critical(self, "파일 로딩 실패", str(exc))
-            return
+                saved_path = self.report_service.create_markdown(result, Path(file_path))
 
-        self.current_data = data
-        self.current_result = None
-        self.dashboard_page.set_dataset(path.name, data)
-        self.stack.setCurrentWidget(self.dashboard_page)
-        self.statusBar().showMessage(f"파일 로딩 완료: {path.name}")
+            QMessageBox.information(
+                self,
+                "보고서 저장 완료",
+                f"저장 위치: {saved_path}",
+            )
 
-    def run_analysis(self) -> None:
-        """Run analysis for the loaded dataset."""
-        if self.current_data is None:
-            QMessageBox.information(self, "분석 불가", "먼저 CSV 또는 Excel 파일을 불러오세요.")
-            return
-
-        try:
-            result = self.analysis_service.analyze(self.current_data)
-        except Exception as exc:  # noqa: BLE001 - UI boundary should show any analysis error.
-            QMessageBox.critical(self, "분석 실패", str(exc))
-            return
-
-        self.current_result = result
-        self.analysis_page.set_result(result)
-        report = self.report_service.build_markdown(result)
-        self.report_page.set_report(report)
-        self.stack.setCurrentWidget(self.analysis_page)
-        self.statusBar().showMessage("분석 완료")
-
-    def save_report(self) -> None:
-        """Save the current report as markdown."""
-        if self.current_result is None:
-            QMessageBox.information(self, "저장 불가", "먼저 분석을 실행하세요.")
-            return
-
-        output_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "보고서 저장",
-            "reports/examtrend_report.md",
-            "Markdown Files (*.md);;Text Files (*.txt)",
-        )
-        if not output_path:
-            return
-
-        try:
-            saved_path = self.report_service.save_markdown(self.current_result, output_path)
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "보고서 저장 실패", str(exc))
-            return
-
-        self.statusBar().showMessage(f"보고서 저장 완료: {saved_path}")
-        QMessageBox.information(self, "저장 완료", f"보고서를 저장했습니다.\n{saved_path}")
 
 
 def run_app() -> None:
-    """Run the PySide6 application."""
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()

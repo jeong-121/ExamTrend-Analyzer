@@ -1,27 +1,45 @@
-"""Keyword analysis module.
+"""Keyword frequency analysis."""
 
-문항 텍스트 또는 토큰 목록을 기반으로 키워드 빈도를 계산한다.
-"""
+from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
+from typing import Iterable
+
+from examtrend_analyzer.preprocessing.tokenizer import KoreanTokenizer
 
 
+@dataclass
 class KeywordAnalyzer:
-    """키워드 빈도 분석기."""
+    tokenizer: KoreanTokenizer | None = None
 
-    def analyze(self, tokens: list[str]) -> dict[str, int]:
-        """토큰 목록에서 키워드 빈도를 계산한다.
+    def __post_init__(self) -> None:
+        if self.tokenizer is None:
+            self.tokenizer = KoreanTokenizer()
 
-        Args:
-            tokens: 전처리와 토큰화를 거친 문자열 목록.
-
-        Returns:
-            키워드를 key, 빈도를 value로 갖는 딕셔너리.
-        """
-        # TODO: 품사 필터링, 최소 길이 필터링, 상위 N개 추출 옵션 추가
-        return dict(Counter(tokens))
-
-    def top_n(self, tokens: list[str], n: int = 20) -> list[tuple[str, int]]:
-        """상위 N개 키워드를 반환한다."""
-        counter = Counter(tokens)
+    def top_n(self, tokens: Iterable[object], n: int = 10) -> list[tuple[str, int]]:
+        counter: Counter[str] = Counter(str(token) for token in tokens if str(token).strip())
         return counter.most_common(n)
+
+    def analyze(self, texts: Iterable[object], top_n: int = 30) -> dict[str, int]:
+        counter: Counter[str] = Counter()
+        for text in texts:
+            counter.update(self.tokenizer.tokenize(text))
+        return dict(counter.most_common(top_n))
+
+    def analyze_with_document_frequency(self, texts: Iterable[object], top_n: int = 30) -> list[dict[str, object]]:
+        frequency: Counter[str] = Counter()
+        document_frequency: Counter[str] = Counter()
+        for text in texts:
+            tokens = self.tokenizer.tokenize(text)
+            frequency.update(tokens)
+            document_frequency.update(set(tokens))
+
+        rows = []
+        for keyword, count in frequency.most_common(top_n):
+            rows.append({
+                "keyword": keyword,
+                "frequency": count,
+                "document_frequency": document_frequency[keyword],
+            })
+        return rows

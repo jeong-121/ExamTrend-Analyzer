@@ -1,46 +1,14 @@
-# Python
+.venv/
 __pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.egg-info/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.idea/
+.vscode/
 dist/
 build/
-
-# Virtual environments
-.venv/
-venv/
-env/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Reports generated at runtime
-reports/*.png
-reports/*.jpg
-reports/*.pdf
-reports/*.xlsx
+*.spec
+data/*.db
+reports/*.md
 !reports/.gitkeep
-
-# Test / coverage
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Local config
-.env
-.env.local

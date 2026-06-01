@@ -1,1 +1,1 @@
-"""PySide6 UI package for ExamTrend Analyzer."""
+"""PySide6 user interface package."""
