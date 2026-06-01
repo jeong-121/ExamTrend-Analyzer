@@ -36,7 +36,7 @@ python run.py
 
 ## 2.3 실행 화면
 
-[스크린샷 1 삽입]
+![스크린샷 1](screenshots/screenshot_1.png)
 
 메인 화면이 표시된다.
 
@@ -57,7 +57,7 @@ python run.py
 
 ---
 
-[스크린샷 2 삽입]
+![스크린샷 2](screenshots/screenshot_2.png)
 
 ---
 
@@ -75,7 +75,7 @@ python run.py
 
 ---
 
-[스크린샷 3 삽입]
+![스크린샷 3](screenshots/screenshot_3.png)
 
 ---
 
@@ -90,7 +90,7 @@ python run.py
 
 ---
 
-[스크린샷 4 삽입]
+![스크린샷 4](screenshots/screenshot_4.png)
 
 ---
 
@@ -149,7 +149,7 @@ Dashboard 화면에서
 
 ---
 
-[스크린샷 5 삽입]
+![스크린샷 5](screenshots/screenshot_5.png)
 
 ---
 
@@ -186,7 +186,7 @@ Ctrl 또는 Shift를 사용하여 여러 파일을 선택한다.
 
 ---
 
-[스크린샷 6 삽입]
+![스크린샷 6](screenshots/screenshot_6.png)
 
 ---
 
@@ -224,7 +224,7 @@ question_text
 
 ---
 
-[스크린샷 7 삽입]
+![스크린샷 7](screenshots/screenshot_7.png)
 
 ---
 
@@ -261,7 +261,7 @@ Dashboard에서
 
 ---
 
-[스크린샷 8 삽입]
+![스크린샷 8](screenshots/screenshot_8.png)
 
 ---
 
@@ -292,7 +292,7 @@ SQL : 145
 
 ---
 
-[스크린샷 9 삽입]
+![스크린샷 9](screenshots/screenshot_9.png)
 
 ---
 
@@ -328,7 +328,7 @@ SQL : 145
 
 ---
 
-[스크린샷 10 삽입]
+![스크린샷 10](screenshots/screenshot_10.png)
 
 ---
 
@@ -377,7 +377,7 @@ SQL : 145
 
 ---
 
-[스크린샷 11 삽입]
+![스크린샷 11](screenshots/screenshot_11.png)
 
 ---
 
@@ -395,7 +395,7 @@ SQL : 145
 
 ---
 
-[스크린샷 12 삽입]
+![스크린샷 12](screenshots/screenshot_12.png)
 
 ---
 
@@ -443,7 +443,7 @@ Text (.txt)
 
 ---
 
-[스크린샷 13 삽입]
+![스크린샷 13](screenshots/screenshot_13.png)
 
 ---
 
